@@ -37,6 +37,8 @@ type NewGotwiClientInput struct {
 	AuthenticationMethod AuthenticationMethod
 	OAuthToken           string
 	OAuthTokenSecret     string
+	OAuthConsumerKey     string
+	OAuthConsumerSecret  string
 }
 
 type IGotwiClient interface {
@@ -50,6 +52,7 @@ type GotwiClient struct {
 	OAuthToken           string
 	SigningKey           string
 	OAuthConsumerKey     string
+	OAuthConsumerSecret  string
 }
 
 type ClientResponse struct {
@@ -76,6 +79,8 @@ func NewGotwiClient(in *NewGotwiClientInput) (*GotwiClient, error) {
 	c := GotwiClient{
 		Client:               defaultHTTPClient,
 		AuthenticationMethod: in.AuthenticationMethod,
+		OAuthConsumerKey:     in.OAuthConsumerKey,
+		OAuthConsumerSecret:  in.OAuthConsumerSecret,
 	}
 
 	if in.HTTPClient != nil {
@@ -90,8 +95,14 @@ func NewGotwiClient(in *NewGotwiClientInput) (*GotwiClient, error) {
 }
 
 func (c *GotwiClient) authorize(oauthToken, oauthTokenSecret string) error {
-	apiKey := os.Getenv(APIKeyEnvName)
-	apiKeySecret := os.Getenv(APIKeySecretEnvName)
+	apiKey := c.OAuthConsumerKey
+	if apiKey == "" {
+		apiKey = os.Getenv(APIKeyEnvName)
+	}
+	apiKeySecret := c.OAuthConsumerSecret
+	if apiKeySecret == "" {
+		apiKeySecret = os.Getenv(APIKeySecretEnvName)
+	}
 	if apiKey == "" || apiKeySecret == "" {
 		return fmt.Errorf("env '%s' and '%s' is required.", APIKeyEnvName, APIKeySecretEnvName)
 	}
@@ -102,7 +113,6 @@ func (c *GotwiClient) authorize(oauthToken, oauthTokenSecret string) error {
 		if oauthToken == "" || oauthTokenSecret == "" {
 			return fmt.Errorf("OAuthToken and OAuthTokenSecret is required for using %s.", AuthenMethodOAuth1UserContext)
 		}
-
 		c.OAuthToken = oauthToken
 		c.SigningKey = fmt.Sprintf("%s&%s",
 			url.QueryEscape(apiKeySecret),
